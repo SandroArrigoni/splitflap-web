@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0e0c0a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Split-Flap</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%235b3a21'/%3E%3Crect x='6' y='5' width='20' height='22' rx='2' fill='%23111'/%3E%3Cpath d='M6 16h20' stroke='%235b3a21' stroke-width='1.5'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <svg class="starburst" viewBox="0 0 40 40" aria-hidden="true">
+        <g stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <path d="M20 3v34M3 20h34M8 8l24 24M32 8L8 32"/>
+          <path d="M20 9v22M9 20h22" stroke-width="3"/>
+        </g>
+        <circle cx="20" cy="20" r="3.2" fill="currentColor"/>
+      </svg>
+      <span class="wordmark">Split<span class="dot">·</span>Flap</span>
+    </div>
+    <button class="status-pill" id="status" type="button" aria-live="polite">
+      <span class="lamp"></span><span class="status-text">Connecting</span>
+    </button>
+  </header>
+
+  <main>
+    <section class="cabinet" aria-label="Display">
+      <div class="case walnut">
+        <div class="board" id="board"></div>
+      </div>
+      <div class="case-foot">
+        <span id="mode-badge" class="badge" hidden>Clock</span>
+        <span id="busy-badge" class="badge badge-live" hidden>Flapping</span>
+      </div>
+    </section>
+
+    <section class="card compose">
+      <form id="compose" autocomplete="off">
+        <div class="label-row">
+          <label class="label" for="line-0">Message</label>
+          <span class="counter" id="counter"></span>
+        </div>
+        <div id="lines"></div>
+        <div class="cells" id="cells" aria-hidden="true"></div>
+        <p class="hint" id="hint"></p>
+
+        <div class="label">Animation</div>
+        <div class="pills" id="animations" role="radiogroup" aria-label="Animation"></div>
+
+        <div class="options">
+          <label class="switch"><input type="checkbox" id="same"><span class="track"></span>Skip unchanged</label>
+          <label class="switch"><input type="checkbox" id="wipe" checked><span class="track"></span>Blank the rest</label>
+        </div>
+
+        <div class="slider-row" id="stagger-row">
+          <label class="label" for="slowdown">Stagger</label>
+          <input type="range" id="slowdown" min="1" max="10" step="1" value="1">
+          <output id="slowdown-out">1×</output>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-primary" type="submit" id="send">Display</button>
+          <button class="btn btn-ghost" type="button" id="save" title="Save as favourite">Save</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card quick-card">
+      <div class="label">Quick</div>
+      <div class="quick">
+        <button class="btn btn-ghost" type="button" id="clear">Clear</button>
+        <button class="btn btn-ghost" type="button" id="resync" title="One full turn per module so the Hall sensors re-home">Resync</button>
+        <button class="btn btn-ghost" type="button" id="stop">Stop</button>
+      </div>
+
+      <div class="label-row mode-row">
+        <span class="label">Clock</span>
+        <label class="switch"><input type="checkbox" id="clock"><span class="track"></span><span id="clock-label">Off</span></label>
+      </div>
+      <div class="pills small" id="clock-formats" role="radiogroup" aria-label="Clock format">
+        <button type="button" class="pill" data-format="%H:%M">21:14</button>
+        <button type="button" class="pill" data-format="%H.%M">21.14</button>
+        <button type="button" class="pill" data-format="%d.%m.">16.11.</button>
+      </div>
+    </section>
+
+    <section class="card favs-card">
+      <div class="label">Favourites</div>
+      <div class="chips" id="presets"></div>
+      <div class="label recent-label">Recent</div>
+      <ol class="recent" id="history"></ol>
+    </section>
+
+    <details class="card hardware" id="hardware">
+      <summary><span class="label">Hardware</span><span class="summary-status" id="hw-summary"></span></summary>
+      <dl class="hw-grid" id="hw-info"></dl>
+      <div class="actions">
+        <button class="btn btn-ghost" type="button" id="scan">Scan I²C bus</button>
+      </div>
+      <p class="hint" id="scan-result"></p>
+      <div class="label">Flaps on the carousel</div>
+      <div class="charset" id="charset"></div>
+    </details>
+  </main>
+
+  <footer class="foot">Based on g000ze/Split-Flap-Display</footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <template id="flap-template">
+    <div class="flap">
+      <div class="half top"><span></span></div>
+      <div class="half bottom"><span></span></div>
+      <div class="half top leaf leaf-top"><span></span></div>
+      <div class="half bottom leaf leaf-bottom"><span></span></div>
+    </div>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
