@@ -5,6 +5,7 @@ import json
 import logging
 import mimetypes
 import os
+import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -123,10 +124,33 @@ def make_handler(ctrl: Controller):
     return Handler
 
 
+class DualStackServer(ThreadingHTTPServer):
+    """Listens on IPv6 and IPv4 at once. Needed because <hostname>.local
+    also resolves to the Pi's IPv6 address, which browsers try first."""
+
+    address_family = socket.AF_INET6
+
+    def server_bind(self):
+        try:
+            self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        except (AttributeError, OSError):
+            pass
+        super().server_bind()
+
+
+def make_server(host: str, port: int, handler) -> ThreadingHTTPServer:
+    if host in ("", "0.0.0.0", "::") and socket.has_ipv6:
+        try:
+            return DualStackServer(("::", port), handler)
+        except OSError as e:
+            log.warning("IPv6 not available (%s), listening on IPv4 only", e)
+    return ThreadingHTTPServer((host, port), handler)
+
+
 def serve(ctrl: Controller, host: str, port: int) -> None:
-    httpd = ThreadingHTTPServer((host, port), make_handler(ctrl))
+    httpd = make_server(host, port, make_handler(ctrl))
     httpd.daemon_threads = True
-    log.info("split-flap web app on http://%s:%d (%s)", host, port, ctrl.hardware_kind)
+    log.info("split-flap web app on port %d, IPv4 + IPv6 (%s)", port, ctrl.hardware_kind)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
