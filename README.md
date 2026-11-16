@@ -55,9 +55,12 @@ Don't know the address? `python3 app.py scan` lists every board that answers
 `temperature.format` sets how it looks on the flaps (`{temp}C` → `-3C`; there is no ° flap),
 `refresh_minutes` how often it updates, `location` the default place before you set one in the app.
 
-`charset` and `motor` must match the firmware (`char_positions[]`, `flaps`,
-`microsteps`, `motorsteps`, `speed`). The defaults match the current
-`Split_Flap.ino`.
+`charset` lists the flaps in carousel order (flap 1 first) and must match the
+character table in the Arduino firmware; `motor` must match its `microsteps`,
+`motorsteps` and `speed`. The default charset is the one on the 1×6 prototype
+(`0-9`, `A-Z`, `! % & * + - . / : ? $ @ _` and space). The current
+g000ze firmware uses a different order:
+`"0ABCD1EFGH2IJKL3MNOP4QRST5UVWX6YZ+-7?!.,8@:;#9*$/ "`.
 
 ## Command line
 
@@ -106,6 +109,6 @@ splitflap/server.py     HTTP server and JSON API
 static/                 the web UI (no build step, no CDN)
 ```
 
-Characters that are not on the flaps (e.g. `&`, `%`) leave that module as it
+Characters that are not on the flaps (e.g. `#`, `(`) leave that module as it
 is, like in the PHP version; the app marks them in red before you send.
 Umlauts are folded (`Zürich` → `ZURICH`).

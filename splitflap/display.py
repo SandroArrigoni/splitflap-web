@@ -15,8 +15,11 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence
 
 # Flap order on the carousel. A character's flap position is its index + 1,
-# exactly like ``char_positions[]`` in Split_Flap.ino. Keep both in sync.
-DEFAULT_CHARSET = "0ABCD1EFGH2IJKL3MNOP4QRST5UVWX6YZ+-7?!.,8@:;#9*$/ "
+# exactly like the character table in the Arduino firmware. Keep both in sync.
+# Default: the flaps on the 1x6 prototype module.
+DEFAULT_CHARSET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!%&*+-./:?$@_ "
+# Order used by the current g000ze/Split-Flap-Display firmware (char_positions[]).
+G000ZE_CHARSET = "0ABCD1EFGH2IJKL3MNOP4QRST5UVWX6YZ+-7?!.,8@:;#9*$/ "
 
 # Sent to modules that should keep their current flap. The Arduino ignores
 # any character that is not on the carousel.
