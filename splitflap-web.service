@@ -1,0 +1,20 @@
+# Template - install.sh fills in @DIR@ and @USER@ and copies it to
+# /etc/systemd/system/splitflap-web.service
+[Unit]
+Description=Split-flap display web app
+After=network-online.target avahi-daemon.service
+Wants=network-online.target
+
+[Service]
+User=@USER@
+SupplementaryGroups=i2c
+WorkingDirectory=@DIR@
+ExecStart=/usr/bin/python3 @DIR@/app.py serve
+Restart=on-failure
+RestartSec=3
+# lets a normal user listen on port 80
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
