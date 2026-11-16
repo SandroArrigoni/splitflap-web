@@ -8,7 +8,10 @@ protocol, so the firmware stays as it is.
 
 - Phone-first UI that also works on tablets and computers, with a live mirror of the display
 - All the stagger animations of the PHP version (from left/right, land together, random, snakes …)
-- Favourites, recent messages, clock mode, re-home (one full turn so the Hall sensors resync)
+- **Clock** and **Temperature** buttons (current temperature for a place you set in the app,
+  from [Open-Meteo](https://open-meteo.com), no API key). The display keeps showing them,
+  and after a reboot it comes back in the same mode
+- Favourites, recent messages, resync (one full turn so the Hall sensors re-home)
 - Reachable on the same Wi-Fi at `http://<hostname>.local`
 - A JSON API and a CLI for scripts (flights overhead, now playing, …)
 - A built-in simulator, so you can try it on a laptop without the display
@@ -49,6 +52,9 @@ board. The planned 3×16 display is three rows of two 8-module boards
 Don't know the address? `python3 app.py scan` lists every board that answers
 (or open **Hardware → Scan I²C bus** in the app).
 
+`temperature.format` sets how it looks on the flaps (`{temp}C` → `-3C`; there is no ° flap),
+`refresh_minutes` how often it updates, `location` the default place before you set one in the app.
+
 `charset` and `motor` must match the firmware (`char_positions[]`, `flaps`,
 `microsteps`, `motorsteps`, `speed`). The defaults match the current
 `Split_Flap.ino`.
@@ -76,7 +82,8 @@ the web app by hand on the same port.
 | POST | `/api/clear` | `animation` |
 | POST | `/api/resync` | – |
 | POST | `/api/stop` | – |
-| POST | `/api/mode` | `mode`: `text` / `clock`, `format` (strftime, e.g. `%H:%M`) |
+| POST | `/api/mode` | `mode`: `text` / `clock` / `temperature`, `format` (clock, strftime, e.g. `%H:%M`) |
+| POST | `/api/location` | `query`: a place name (`Zürich`) or `lat, lon` |
 | GET | `/api/scan` | – |
 
 ```bash
@@ -93,7 +100,8 @@ Animations: `start` (all at once), `stop` (land together), `left`, `right`,
 app.py                  entry point: web app + CLI
 splitflap/display.py    port of split-flap.php (sanitising, grid, animations, timed send)
 splitflap/bus.py        /dev/i2c-N access via ioctl, and the simulator
-splitflap/controller.py one job at a time, status cache, clock, favourites
+splitflap/controller.py one job at a time, status cache, clock/temperature modes, favourites
+splitflap/weather.py    Open-Meteo place search and current temperature
 splitflap/server.py     HTTP server and JSON API
 static/                 the web UI (no build step, no CDN)
 ```

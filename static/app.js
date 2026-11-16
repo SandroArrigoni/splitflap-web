@@ -212,8 +212,8 @@
       span.className = "warn";
       span.textContent = "Not on the flaps: " + Array.from(unsupported).join(" ");
       hint.append(span, document.createTextNode(" — those modules keep their letter."));
-    } else if (state.mode === "clock") {
-      hint.textContent = "Sending a message turns the clock off.";
+    } else if (state.mode !== "text") {
+      hint.textContent = "Sending a message stops the " + state.mode + ".";
     } else {
       hint.textContent = wipe ? "" : "Dashed modules keep what they show.";
     }
@@ -344,13 +344,11 @@
     else { pill.classList.add("ok"); text = "Connected"; }
     pill.querySelector(".status-text").textContent = text;
 
-    $("#mode-badge").hidden = state.mode !== "clock";
+    const badge = $("#mode-badge");
+    badge.hidden = state.mode === "text";
+    badge.textContent = state.mode === "clock" ? "Clock" : state.mode === "temperature" ? "Temperature" : "";
     $("#busy-badge").hidden = !(state.busy || state.modules.some((m) => m.moving));
-    const clock = $("#clock");
-    clock.checked = state.mode === "clock";
-    $("#clock-label").textContent = clock.checked ? "On" : "Off";
-    document.querySelectorAll("#clock-formats .pill").forEach((p) =>
-      p.setAttribute("aria-checked", String(p.dataset.format === state.clock_format)));
+    renderModes();
 
     $("#hw-summary").textContent = hw.ok ? (hw.kind === "simulator" ? "simulated" : "all boards answering") : "check connection";
     const info = $("#hw-info");
@@ -364,6 +362,59 @@
     if (state.last_error && state.last_error !== hw.error) rows.push(["Last send", state.last_error]);
     const html = rows.map(([k, v]) => `<dt>${k}</dt><dd>${escapeHtml(v).replace(/&lt;br&gt;/g, "<br>")}</dd>`).join("");
     if (info.dataset.html !== html) { info.innerHTML = html; info.dataset.html = html; }
+  }
+
+  // ---------- clock & temperature ----------
+  function strftime(fmt, d) {
+    const pad = (n) => String(n).padStart(2, "0");
+    return fmt.replace(/%([HMSdmyY%])/g, (_, k) => ({
+      H: pad(d.getHours()), M: pad(d.getMinutes()), S: pad(d.getSeconds()), d: pad(d.getDate()),
+      m: pad(d.getMonth() + 1), y: pad(d.getFullYear() % 100), Y: d.getFullYear(), "%": "%",
+    }[k]));
+  }
+
+  function renderModes() {
+    $("#mode-clock").setAttribute("aria-pressed", String(state.mode === "clock"));
+    $("#mode-temp").setAttribute("aria-pressed", String(state.mode === "temperature"));
+    $("#clock-preview").textContent = strftime(state.clock_format, new Date());
+    document.querySelectorAll("#clock-formats .pill").forEach((p) =>
+      p.setAttribute("aria-checked", String(p.dataset.format === state.clock_format)));
+
+    const loc = state.location;
+    const t = state.temperature;
+    $("#temp-preview").textContent = t ? `${Math.round(t.value)}°C` : "–";
+    $("#mode-temp").title = loc ? "Temperature in " + loc.name : "Temperature";
+    const lh = $("#location-hint");
+    const lhText = loc ? `Showing ${loc.name}${loc.region ? ", " + loc.region : ""}` + (t ? ` — ${t.value.toFixed(1)} °C` : "") : "";
+    if (lh.dataset.text !== lhText && !lh.dataset.busy) { lh.textContent = lhText; lh.dataset.text = lhText; }
+
+    const hint = $("#mode-hint");
+    if (state.mode_error) { hint.innerHTML = ""; const w = document.createElement("span"); w.className = "warn"; w.textContent = state.mode_error; hint.appendChild(w); }
+    else if (state.mode === "temperature") hint.textContent = "Updates every few minutes. Sending a message stops it.";
+    else if (state.mode === "clock") hint.textContent = "Runs until you send something else.";
+    else hint.textContent = "";
+  }
+
+  async function setLocation(query) {
+    const lh = $("#location-hint");
+    lh.dataset.busy = "1";
+    lh.textContent = "Looking up…";
+    try {
+      const r = await api("/api/location", { query });
+      $("#location").value = "";
+      $("#location").blur();
+      lh.dataset.busy = "";
+      lh.dataset.text = "";
+      toast("Location: " + r.location.name);
+      return true;
+    } catch (e) {
+      lh.textContent = e.message;
+      lh.dataset.busy = "";
+      lh.dataset.text = e.message;
+      return false;
+    } finally {
+      poll(true);
+    }
   }
 
   function escapeHtml(s) {
@@ -429,9 +480,17 @@
     $("#clear").addEventListener("click", () => run("/api/clear", { animation, slowdown: options().slowdown }));
     $("#resync").addEventListener("click", () => run("/api/resync", {}, "Every module turns once"));
     $("#stop").addEventListener("click", () => run("/api/stop", {}, "Stopped sending"));
-    $("#clock").addEventListener("change", (e) => {
-      const fmt = state && state.clock_format;
-      run("/api/mode", { mode: e.target.checked ? "clock" : "text", format: fmt });
+    $("#mode-clock").addEventListener("click", () =>
+      run("/api/mode", { mode: "clock", format: state && state.clock_format }));
+    $("#mode-temp").addEventListener("click", async () => {
+      if (state && !state.location) $("#location-hint").textContent = "Finding the default place…";
+      run("/api/mode", { mode: "temperature" });
+    });
+    $("#location-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const q = $("#location").value.trim();
+      if (!q) { $("#location").focus(); return; }
+      if (await setLocation(q) && state && state.mode !== "temperature") run("/api/mode", { mode: "temperature" });
     });
     document.querySelectorAll("#clock-formats .pill").forEach((p) =>
       p.addEventListener("click", () => run("/api/mode", { mode: "clock", format: p.dataset.format })));
@@ -473,4 +532,5 @@
 
   wire();
   poll();
+  setInterval(() => { if (state) $("#clock-preview").textContent = strftime(state.clock_format, new Date()); }, 1000);
 })();

@@ -33,7 +33,7 @@
         <div class="board" id="board"></div>
       </div>
       <div class="case-foot">
-        <span id="mode-badge" class="badge" hidden>Clock</span>
+        <span id="mode-badge" class="badge" hidden></span>
         <span id="busy-badge" class="badge badge-live" hidden>Flapping</span>
       </div>
     </section>
@@ -70,21 +70,42 @@
     </section>
 
     <section class="card quick-card">
+      <div class="label">Show</div>
+      <div class="modes">
+        <button class="mode-btn" type="button" id="mode-clock" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <span class="mode-name">Clock</span>
+          <span class="mode-sub" id="clock-preview">--:--</span>
+        </button>
+        <button class="mode-btn" type="button" id="mode-temp" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14.5V5a2 2 0 1 1 4 0v9.5a4 4 0 1 1-4 0z"/><path d="M12 9v7"/></svg>
+          <span class="mode-name">Temp</span>
+          <span class="mode-sub" id="temp-preview">–</span>
+        </button>
+      </div>
+      <p class="hint mode-hint" id="mode-hint"></p>
+
+      <div class="label">Clock format</div>
+      <div class="pills small" id="clock-formats" role="radiogroup" aria-label="Clock format">
+        <button type="button" class="pill" data-format="%H:%M">21:14</button>
+        <button type="button" class="pill" data-format="%H.%M">21.14</button>
+        <button type="button" class="pill" data-format="%d.%m.">16.11.</button>
+      </div>
+
+      <form class="location" id="location-form" autocomplete="off">
+        <label class="label" for="location">Temperature for</label>
+        <div class="location-row">
+          <input id="location" class="text-input" type="text" placeholder="City, e.g. Zürich" enterkeyhint="done">
+          <button class="btn btn-ghost" type="submit">Set</button>
+        </div>
+        <p class="hint" id="location-hint"></p>
+      </form>
+
       <div class="label">Quick</div>
       <div class="quick">
         <button class="btn btn-ghost" type="button" id="clear">Clear</button>
         <button class="btn btn-ghost" type="button" id="resync" title="One full turn per module so the Hall sensors re-home">Resync</button>
         <button class="btn btn-ghost" type="button" id="stop">Stop</button>
-      </div>
-
-      <div class="label-row mode-row">
-        <span class="label">Clock</span>
-        <label class="switch"><input type="checkbox" id="clock"><span class="track"></span><span id="clock-label">Off</span></label>
-      </div>
-      <div class="pills small" id="clock-formats" role="radiogroup" aria-label="Clock format">
-        <button type="button" class="pill" data-format="%H:%M">21:14</button>
-        <button type="button" class="pill" data-format="%H.%M">21.14</button>
-        <button type="button" class="pill" data-format="%d.%m.">16.11.</button>
       </div>
     </section>
 

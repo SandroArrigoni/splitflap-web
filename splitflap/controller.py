@@ -10,7 +10,7 @@ import time
 from collections import deque
 from typing import List, Optional, Sequence
 
-from . import display
+from . import display, weather
 from .bus import BusError, LinuxI2C, SimulatedI2C
 
 log = logging.getLogger("splitflap")
@@ -24,6 +24,7 @@ DEFAULT_CONFIG = {
     "charset": display.DEFAULT_CHARSET,
     "motor": {"microsteps": 16, "motorsteps": 200, "speed_us": 1800},
     "clock": {"format": "%H:%M", "animation": "right"},
+    "temperature": {"location": "Zurich", "format": "{temp}C", "animation": "right", "refresh_minutes": 10},
 }
 
 
@@ -61,14 +62,19 @@ class Controller:
         self._status_cache = (0.0, None, None)
         self._status_lock = threading.Lock()
 
-        self.mode = "text"
-        self.clock_format = config["clock"]["format"]
-        self._mode_cancel = threading.Event()
-
         self.history: deque = deque(maxlen=12)
         self.data_dir = data_dir
         os.makedirs(data_dir, exist_ok=True)
-        self.presets: List[str] = self._load_presets()
+        self.presets: List[str] = [str(p) for p in self._load_json("presets.json", ["HELLO", "HALLO", "ZURICH"])]
+
+        # clock / temperature modes; remembered across restarts in data/settings.json
+        self.settings: dict = self._load_json("settings.json", {})
+        self.mode = "text"
+        self.mode_error: Optional[str] = None
+        self._mode_cancel = threading.Event()
+        self.clock_format = self.settings.get("clock_format") or config["clock"]["format"]
+        self.location: Optional[dict] = self.settings.get("location")
+        self.temperature: Optional[dict] = None
 
     # ----- hardware ---------------------------------------------------------
 
@@ -211,62 +217,112 @@ class Controller:
                 return
             time.sleep(self.flap_seconds)
 
-    # ----- clock mode -------------------------------------------------------
+    # ----- clock & temperature modes ---------------------------------------
+
+    MODES = ("text", "clock", "temperature")
 
     def set_mode(self, mode: str, fmt: Optional[str] = None) -> None:
-        if mode not in ("text", "clock"):
+        if mode not in self.MODES:
             raise ValueError("unknown mode: %s" % mode)
-        self.stop_mode()
-        if mode == "clock":
-            if fmt:
-                self.clock_format = fmt
-            self.mode = "clock"
+        self.stop_mode(persist=False)
+        if mode == "clock" and fmt:
+            self.clock_format = fmt
+        if mode == "temperature" and not self.location:
+            self.set_location(self.config["temperature"].get("location") or "Zurich", restart=False)
+        if mode != "text":
+            self.mode = mode
+            self.mode_error = None
             self._mode_cancel = threading.Event()
-            threading.Thread(target=self._clock_loop, args=(self._mode_cancel,), daemon=True).start()
+            if mode == "clock":
+                produce, interval = self._clock_text, 1.0
+            else:
+                produce = self._temperature_text
+                interval = max(1.0, float(self.config["temperature"].get("refresh_minutes", 10))) * 60
+            animation = self.config[mode].get("animation", "right")
+            threading.Thread(target=self._mode_loop, daemon=True,
+                             args=(self._mode_cancel, produce, interval, animation)).start()
+        self._save_settings()
 
-    def stop_mode(self) -> None:
+    def stop_mode(self, persist: bool = True) -> None:
         self._mode_cancel.set()
+        was = self.mode
         self.mode = "text"
+        if persist and was != "text":
+            self._save_settings()
 
-    def _clock_loop(self, cancel: threading.Event) -> None:
+    def resume(self) -> None:
+        """Bring back the clock/temperature after a reboot."""
+        mode = self.settings.get("mode")
+        if mode in ("clock", "temperature"):
+            try:
+                self.set_mode(mode)
+            except Exception as e:
+                log.warning("could not resume %s mode: %s", mode, e)
+
+    def _mode_loop(self, cancel: threading.Event, produce, interval: float, animation: str) -> None:
         last = None
-        animation = self.config["clock"].get("animation", "right")
         while not cancel.is_set():
-            now = time.strftime(self.clock_format)
-            if now != last:
-                line = now[:self.geo.cols].center(self.geo.cols)
-                self.show(lines=[line], animation=animation, same=True, wipe=True, source="clock")
-                last = now
-            cancel.wait(1.0)
+            wait = interval
+            try:
+                text = produce()
+                self.mode_error = None
+                if text != last and not cancel.is_set():
+                    line = text[:self.geo.cols].center(self.geo.cols)
+                    self.show(lines=[line], animation=animation, same=True, wipe=True, source="mode")
+                    last = text
+            except Exception as e:
+                self.mode_error = str(e)
+                log.warning("%s mode: %s", self.mode, e)
+                wait = min(interval, 60.0)
+            cancel.wait(wait)
 
-    # ----- presets ----------------------------------------------------------
+    def _clock_text(self) -> str:
+        return time.strftime(self.clock_format)
 
-    def _presets_path(self) -> str:
-        return os.path.join(self.data_dir, "presets.json")
+    def _temperature_text(self) -> str:
+        loc = self.location or {}
+        value = weather.current_temperature(loc["latitude"], loc["longitude"])
+        self.temperature = {"value": value, "at": time.time()}
+        return weather.format_temperature(value, self.config["temperature"].get("format", "{temp}C"))
 
-    def _load_presets(self) -> List[str]:
+    def set_location(self, query: str, restart: bool = True) -> dict:
+        place = weather.find_place(query)
+        self.location = place
+        self.temperature = None
+        self._save_settings()
+        if restart and self.mode == "temperature":
+            self.set_mode("temperature")
+        return place
+
+    # ----- persistence ------------------------------------------------------
+
+    def _load_json(self, name: str, default):
         try:
-            with open(self._presets_path(), encoding="utf-8") as f:
-                return [str(p) for p in json.load(f)]
+            with open(os.path.join(self.data_dir, name), encoding="utf-8") as f:
+                return json.load(f)
         except (OSError, ValueError):
-            return ["HELLO", "HALLO", "ZURICH"]
+            return default
 
-    def _save_presets(self) -> None:
-        tmp = self._presets_path() + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(self.presets, f, indent=2, ensure_ascii=False)
-        os.replace(tmp, self._presets_path())
+    def _save_json(self, name: str, data) -> None:
+        path = os.path.join(self.data_dir, name)
+        with open(path + ".tmp", "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        os.replace(path + ".tmp", path)
+
+    def _save_settings(self) -> None:
+        self.settings = {"mode": self.mode, "clock_format": self.clock_format, "location": self.location}
+        self._save_json("settings.json", self.settings)
 
     def add_preset(self, text: str) -> None:
         text = (text or "").strip("\n")
         if text.strip() and text not in self.presets:
             self.presets.append(text)
-            self._save_presets()
+            self._save_json("presets.json", self.presets)
 
     def remove_preset(self, text: str) -> None:
         if text in self.presets:
             self.presets.remove(text)
-            self._save_presets()
+            self._save_json("presets.json", self.presets)
 
     # ----- state for the UI -------------------------------------------------
 
@@ -292,7 +348,10 @@ class Controller:
             "modules": modules,
             "busy": self.busy,
             "mode": self.mode,
+            "mode_error": self.mode_error,
             "clock_format": self.clock_format,
+            "location": self.location,
+            "temperature": self.temperature,
             "hardware": {
                 "kind": self.hardware_kind,
                 "ok": self.bus is not None and read_error is None,

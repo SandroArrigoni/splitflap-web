@@ -93,6 +93,9 @@ def make_handler(ctrl: Controller):
                     ctrl.stop()
                 elif path == "/api/mode":
                     ctrl.set_mode(p.get("mode", "text"), p.get("format"))
+                elif path == "/api/location":
+                    place = ctrl.set_location(p.get("query", ""))
+                    return self._json({"ok": True, "location": place})
                 elif path == "/api/presets":
                     ctrl.add_preset(p.get("text", ""))
                 elif path == "/api/presets/delete":

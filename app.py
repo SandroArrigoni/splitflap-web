@@ -48,6 +48,7 @@ def main() -> int:
 
     if command == "serve":
         from splitflap.server import serve
+        ctrl.resume()
         serve(ctrl, config["host"], args.port or config["port"])
         return 0
 

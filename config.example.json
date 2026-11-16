@@ -10,5 +10,6 @@
 
   "charset": "0ABCD1EFGH2IJKL3MNOP4QRST5UVWX6YZ+-7?!.,8@:;#9*$/ ",
   "motor": { "microsteps": 16, "motorsteps": 200, "speed_us": 1800 },
-  "clock": { "format": "%H:%M", "animation": "right" }
+  "clock": { "format": "%H:%M", "animation": "right" },
+  "temperature": { "location": "Zurich", "format": "{temp}C", "animation": "right", "refresh_minutes": 10 }
 }
