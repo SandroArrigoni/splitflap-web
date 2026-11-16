@@ -1,0 +1,6 @@
+# local settings and runtime data (per Pi, never committed)
+config.json
+data/
+__pycache__/
+*.pyc
+.DS_Store
