@@ -20,7 +20,7 @@ DEFAULT_CONFIG = {
     "port": 8080,
     "i2c_bus": 1,
     "simulate": "auto",
-    "layout": [[{"address": "0x0a", "modules": 6}]],
+    "layout": [[{"address": "0x0c", "modules": 6}]],
     "charset": display.DEFAULT_CHARSET,
     "motor": {"microsteps": 16, "motorsteps": 200, "speed_us": 1800},
     "clock": {"format": "%H:%M", "animation": "right"},

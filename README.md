@@ -40,13 +40,13 @@ restart with `sudo systemctl restart splitflap-web`.
 
 ```json
 "layout": [
-  [ { "address": "0x0a", "modules": 6 } ]
+  [ { "address": "0x0c", "modules": 6 } ]
 ]
 ```
 
 `layout` is a list of rows; each row lists its Arduino boards from left to
 right with their I²C address and number of modules. The 1×6 prototype is one
-board. The planned 3×16 display is three rows of two 8-module boards
+board at `0x0c`. The planned 3×16 display is three rows of two 8-module boards
 (`0x0a`–`0x0f`, as in the original PHP `$targets`).
 
 Don't know the address? `python3 app.py scan` lists every board that answers

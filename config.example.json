@@ -5,7 +5,7 @@
   "simulate": "auto",
 
   "layout": [
-    [ { "address": "0x0a", "modules": 6 } ]
+    [ { "address": "0x0c", "modules": 6 } ]
   ],
 
   "charset": "0ABCD1EFGH2IJKL3MNOP4QRST5UVWX6YZ+-7?!.,8@:;#9*$/ ",
